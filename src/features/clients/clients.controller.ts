@@ -27,7 +27,7 @@ export async function getById(req: Request, res: Response) {
   const tenantId = req.headers['x-tenant-id'] as string
   if (!isSuperAdmin(role) && tenantId !== req.params.id) return forbidden(res)
   try {
-    return res.json(await getClientById(req.params.id))
+    return res.json(await getClientById(req.params.id as string))
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }
     return res.status(e.status ?? 500).json({ error: e.message })
@@ -35,7 +35,7 @@ export async function getById(req: Request, res: Response) {
 }
 
 export async function update(req: Request, res: Response) {
-  const { id } = req.params
+  const id = req.params.id as string
   const role = req.headers['x-user-role'] as string
   const tenantId = req.headers['x-tenant-id'] as string
   if (!isSuperAdmin(role) && (role !== 'client_admin' || tenantId !== id)) return forbidden(res)
@@ -53,14 +53,14 @@ export async function update(req: Request, res: Response) {
 
 export async function deactivate(req: Request, res: Response) {
   if (!isSuperAdmin(req.headers['x-user-role'] as string)) return forbidden(res)
-  await deactivateClient(req.params.id)
+  await deactivateClient(req.params.id as string)
   return res.json({ success: true })
 }
 
 export async function patch(req: Request, res: Response) {
   if (!isSuperAdmin(req.headers['x-user-role'] as string)) return forbidden(res)
   try {
-    await patchClient(req.params.id, req.body.action)
+    await patchClient(req.params.id as string, req.body.action)
     return res.json({ success: true })
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }

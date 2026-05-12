@@ -48,7 +48,7 @@ export async function getById(req: Request, res: Response) {
   try {
     const ctx = requireTenant(req, res)
     if (!ctx) return
-    const task = await getTaskById(req.params.id, ctx.tenantId)
+    const task = await getTaskById(req.params.id as string, ctx.tenantId)
     return res.json(task)
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }
@@ -60,7 +60,7 @@ export async function action(req: Request, res: Response) {
   try {
     const ctx = requireTenant(req, res)
     if (!ctx) return
-    const task = await applyTaskAction(req.params.id, ctx, req.body)
+    const task = await applyTaskAction(req.params.id as string, ctx, req.body)
     return res.json(task)
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }
@@ -74,7 +74,7 @@ export async function remove(req: Request, res: Response) {
     const ctx = requireTenant(req, res)
     if (!ctx) return
     if (!isClientAdmin(ctx.role)) return res.status(403).json({ error: 'Forbidden' })
-    await deleteTask(req.params.id, ctx.tenantId)
+    await deleteTask(req.params.id as string, ctx.tenantId)
     return res.json({ message: 'Deleted' })
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }

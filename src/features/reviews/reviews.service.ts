@@ -82,7 +82,7 @@ export async function applyReviewAction(id: string, ctx: { userId: string; email
   } else if (action === 'decide') {
     const { decision, comments, reasonCode, qualityScore, criteriaScores, errorTags } = body
     review.decision = decision as string; review.comments = comments as string; review.reasonCode = reasonCode as string
-    review.qualityScore = qualityScore as number; review.criteriaScores = criteriaScores as Record<string, number>; review.reviewedAt = new Date()
+    review.qualityScore = qualityScore as number; review.criteriaScores = criteriaScores as { accuracy: number; completeness: number; adherence: number }; review.reviewedAt = new Date()
     if ((errorTags as unknown[])?.length) review.errorTags = errorTags as typeof review.errorTags
 
     if (decision === 'approve') {

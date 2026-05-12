@@ -10,10 +10,10 @@ export async function listClients() {
   return (await Client.find().sort({ createdAt: -1 }).lean()).map(c => serialize(c as unknown as Record<string, unknown>))
 }
 
-export async function createClient(data: { name: string; slug: string; description?: string; plan?: string; logoUrl?: string; settings?: unknown; userId?: string }) {
+export async function createClient(data: { name: string; slug: string; description?: string; plan?: string; logoUrl?: string; settings?: Record<string, unknown>; userId?: string }) {
   await connectToDatabase()
   if (await Client.findOne({ slug: data.slug })) throw Object.assign(new Error('Slug already in use'), { status: 409 })
-  const client = await Client.create({ ...data, plan: data.plan ?? 'starter', createdBy: data.userId })
+  const client = await Client.create({ ...data, plan: (data.plan ?? 'starter') as 'starter' | 'pro' | 'enterprise', createdBy: data.userId })
   return serialize(client.toObject() as unknown as Record<string, unknown>)
 }
 

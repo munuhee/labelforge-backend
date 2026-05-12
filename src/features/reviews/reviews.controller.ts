@@ -19,7 +19,7 @@ export async function getById(req: Request, res: Response) {
   try {
     const ctx = requireTenant(req, res)
     if (!ctx) return
-    const review = await getReviewById(req.params.id, ctx.tenantId)
+    const review = await getReviewById(req.params.id as string, ctx.tenantId)
     return res.json(review)
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }
@@ -31,7 +31,7 @@ export async function action(req: Request, res: Response) {
   try {
     const ctx = requireTenant(req, res)
     if (!ctx) return
-    const review = await applyReviewAction(req.params.id, ctx, req.body)
+    const review = await applyReviewAction(req.params.id as string, ctx, req.body)
     return res.json(review)
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }
