@@ -23,6 +23,7 @@ const ClientMembershipSchema = new Schema<IClientMembership>({
 ClientMembershipSchema.index({ userId: 1, tenantId: 1 }, { unique: true })
 ClientMembershipSchema.index({ tenantId: 1 })
 ClientMembershipSchema.index({ userId: 1 })
+ClientMembershipSchema.index({ tenantId: 1, role: 1, isActive: 1 })
 
 const ClientMembership: Model<IClientMembership> =
   mongoose.models.ClientMembership || mongoose.model<IClientMembership>('ClientMembership', ClientMembershipSchema)

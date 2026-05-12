@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import mongoose from 'mongoose'
 import { requireTenant, isQaOrAbove, isSuperAdmin, isValidObjectId } from '../../lib/tenant'
 import { connectToDatabase } from '../../lib/mongodb'
 import Task from '../../models/Task'
@@ -27,6 +28,10 @@ export async function get(req: Request, res: Response) {
     const baseFilter: Record<string, unknown> = { tenantId }
     if (projectId) baseFilter.projectId = projectId
 
+    const tenantOid = new mongoose.Types.ObjectId(tenantId)
+    const aggFilter: Record<string, unknown> = { tenantId: tenantOid }
+    if (projectId) aggFilter.projectId = new mongoose.Types.ObjectId(projectId)
+
     const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
     const recentTasks = await Task.find({ ...baseFilter, status: { $in: ['approved', 'submitted'] }, submittedAt: { $gte: sevenDaysAgo } }).lean()
     const byDay: Record<string, number> = {}
@@ -34,30 +39,46 @@ export async function get(req: Request, res: Response) {
     recentTasks.forEach(t => { const day = new Date(t.submittedAt!).toISOString().split('T')[0]; if (byDay[day] !== undefined) byDay[day]++ })
     const tasksCompletedByDay = Object.entries(byDay).map(([date, count]) => ({ date, count }))
 
-    const allTasks = await Task.find(baseFilter).lean()
-    const typeCount: Record<string, number> = {}
-    allTasks.forEach(t => { typeCount[t.taskType] = (typeCount[t.taskType] || 0) + 1 })
-    const tasksByType = Object.entries(typeCount).map(([type, count]) => ({ type, count }))
+    const typeAgg = await Task.aggregate([{ $match: aggFilter }, { $group: { _id: '$taskType', count: { $sum: 1 } } }])
+    const tasksByType = typeAgg.map((r: { _id: string; count: number }) => ({ type: r._id, count: r.count }))
     const qualityScoresTrend = Object.keys(byDay).map(date => ({ date, score: 80 + Math.round(Math.random() * 15) }))
 
-    const annotatorMemberships = await ClientMembership.find({ tenantId, role: 'annotator', isActive: true }).populate('userId', 'name email').lean()
-    const annotatorPerformance = await Promise.all(annotatorMemberships.map(async (m) => {
-      const u = m.userId as unknown as { _id: { toString(): string }; name: string; email: string }
-      const completed = await Task.find({ ...baseFilter, annotatorId: u._id.toString(), status: { $in: ['approved', 'submitted'] } }).lean()
-      const scores = completed.filter(t => t.qualityScore).map(t => t.qualityScore!)
-      const avgQuality = scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0
-      const withDuration = completed.filter(t => t.actualDuration)
-      const avgTime = withDuration.length ? Math.round(withDuration.reduce((s, t) => s + (t.actualDuration || 0), 0) / withDuration.length) : 0
-      return { id: u._id.toString(), name: u.name, email: u.email, tasksCompleted: completed.length, averageQuality: avgQuality, averageTimeMinutes: avgTime, totalToolUsageHours: Math.round(avgTime * completed.length / 60) }
-    }))
+    const [annotatorMemberships, reviewerMemberships] = await Promise.all([
+      ClientMembership.find({ tenantId, role: 'annotator', isActive: true }).populate('userId', 'name email').lean(),
+      ClientMembership.find({ tenantId, role: { $in: ['reviewer', 'qa_lead'] }, isActive: true }).populate('userId', 'name email').lean(),
+    ])
 
-    const reviewerMemberships = await ClientMembership.find({ tenantId, role: { $in: ['reviewer', 'qa_lead'] }, isActive: true }).populate('userId', 'name email').lean()
-    const reviewerActivity = await Promise.all(reviewerMemberships.map(async (m) => {
+    const [taskPerfAgg, reviewPerfAgg] = await Promise.all([
+      Task.aggregate([
+        { $match: { ...aggFilter, status: { $in: ['approved', 'submitted'] } } },
+        { $group: { _id: '$annotatorId', tasksCompleted: { $sum: 1 }, scores: { $push: '$qualityScore' }, durations: { $push: '$actualDuration' } } },
+      ]),
+      Review.aggregate([
+        { $match: { ...aggFilter, status: { $in: ['approved', 'rejected', 'revision-requested'] } } },
+        { $group: { _id: '$reviewerId', total: { $sum: 1 }, approved: { $sum: { $cond: [{ $eq: ['$status', 'approved'] }, 1, 0] } } } },
+      ]),
+    ])
+
+    const taskPerfById: Record<string, { tasksCompleted: number; scores: (number | null)[]; durations: (number | null)[] }> =
+      Object.fromEntries(taskPerfAgg.map((r: { _id: { toString(): string }; tasksCompleted: number; scores: (number | null)[]; durations: (number | null)[] }) => [r._id?.toString(), r]))
+    const reviewPerfById: Record<string, { total: number; approved: number }> =
+      Object.fromEntries(reviewPerfAgg.map((r: { _id: { toString(): string }; total: number; approved: number }) => [r._id?.toString(), r]))
+
+    const annotatorPerformance = annotatorMemberships.map(m => {
       const u = m.userId as unknown as { _id: { toString(): string }; name: string; email: string }
-      const done = await Review.find({ ...baseFilter, reviewerId: u._id.toString(), status: { $in: ['approved', 'rejected', 'revision-requested'] } }).lean()
-      const approved = done.filter(rv => rv.status === 'approved').length
-      return { id: u._id.toString(), name: u.name, email: u.email, reviewsCompleted: done.length, approvalRate: done.length ? Math.round((approved / done.length) * 100) : 0, averageReviewTime: 12 }
-    }))
+      const data = taskPerfById[u._id.toString()] ?? { tasksCompleted: 0, scores: [], durations: [] }
+      const scores = data.scores.filter((s): s is number => s != null)
+      const avgQuality = scores.length ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length) : 0
+      const durations = data.durations.filter((d): d is number => d != null)
+      const avgTime = durations.length ? Math.round(durations.reduce((s, v) => s + v, 0) / durations.length) : 0
+      return { id: u._id.toString(), name: u.name, email: u.email, tasksCompleted: data.tasksCompleted, averageQuality: avgQuality, averageTimeMinutes: avgTime, totalToolUsageHours: Math.round(avgTime * data.tasksCompleted / 60) }
+    })
+
+    const reviewerActivity = reviewerMemberships.map(m => {
+      const u = m.userId as unknown as { _id: { toString(): string }; name: string; email: string }
+      const data = reviewPerfById[u._id.toString()] ?? { total: 0, approved: 0 }
+      return { id: u._id.toString(), name: u.name, email: u.email, reviewsCompleted: data.total, approvalRate: data.total ? Math.round((data.approved / data.total) * 100) : 0, averageReviewTime: 12 }
+    })
 
     const batches = await Batch.find(baseFilter).lean()
     const batchProgress = batches.map(b => ({ id: b._id.toString(), title: b.title, tasksTotal: b.tasksTotal, tasksCompleted: b.tasksCompleted, status: b.status }))

@@ -70,7 +70,10 @@ const ReviewSchema = new Schema<IReview>({
 
 ReviewSchema.index({ tenantId: 1 })
 ReviewSchema.index({ tenantId: 1, status: 1 })
+ReviewSchema.index({ tenantId: 1, taskId: 1 })
+ReviewSchema.index({ tenantId: 1, annotatorId: 1 })
 ReviewSchema.index({ tenantId: 1, reviewerId: 1 })
+ReviewSchema.index({ tenantId: 1, reviewerId: 1, status: 1 })
 
 const Review: Model<IReview> = mongoose.models.Review || mongoose.model<IReview>('Review', ReviewSchema)
 export default Review

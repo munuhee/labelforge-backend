@@ -116,7 +116,6 @@ export async function bulkCreateTasks(tenantId: string, batchId: string, tasks: 
   const batch = await Batch.findOne({ _id: batchId, ...bf })
   if (!batch) throw Object.assign(new Error('Batch not found'), { status: 404 })
 
-  const created: string[] = []
   const errors: { index: number; error: string }[] = []
   const globalMeta: Record<string, unknown> = {}
   if (metadata.priority != null) globalMeta.priority = Number(metadata.priority)
@@ -125,20 +124,19 @@ export async function bulkCreateTasks(tenantId: string, batchId: string, tasks: 
   if (metadata.sla) globalMeta.sla = new Date(metadata.sla as string)
   if (metadata.languageTags) globalMeta.languageTags = Array.isArray(metadata.languageTags) ? metadata.languageTags : String(metadata.languageTags).split(',').map((t: string) => t.trim()).filter(Boolean)
 
+  const validDocs: Record<string, unknown>[] = []
   for (let i = 0; i < tasks.length; i++) {
     const raw = tasks[i]
     if (!raw.title) { errors.push({ index: i, error: 'Missing required field: title' }); continue }
-    try {
-      const taskDoc: Record<string, unknown> = { tenantId, projectId: batch.projectId, batchId: batch._id, batchTitle: batch.title, workflowId: batch.workflowId, workflowName: batch.workflowName, taskType: batch.taskType, status: 'unclaimed', priority: batch.priority, estimatedDuration: 30, ...globalMeta, ...raw }
-      if (typeof taskDoc.languageTags === 'string') taskDoc.languageTags = (taskDoc.languageTags as string).split(',').map((t: string) => t.trim()).filter(Boolean)
-      if (taskDoc.priority) taskDoc.priority = Number(taskDoc.priority)
-      if (taskDoc.estimatedDuration) taskDoc.estimatedDuration = Number(taskDoc.estimatedDuration)
-      const task = await Task.create(taskDoc)
-      created.push(task._id.toString())
-    } catch (err) {
-      errors.push({ index: i, error: err instanceof Error ? err.message : 'Unknown error' })
-    }
+    const taskDoc: Record<string, unknown> = { tenantId, projectId: batch.projectId, batchId: batch._id, batchTitle: batch.title, workflowId: batch.workflowId, workflowName: batch.workflowName, taskType: batch.taskType, status: 'unclaimed', priority: batch.priority, estimatedDuration: 30, ...globalMeta, ...raw }
+    if (typeof taskDoc.languageTags === 'string') taskDoc.languageTags = (taskDoc.languageTags as string).split(',').map((t: string) => t.trim()).filter(Boolean)
+    if (taskDoc.priority) taskDoc.priority = Number(taskDoc.priority)
+    if (taskDoc.estimatedDuration) taskDoc.estimatedDuration = Number(taskDoc.estimatedDuration)
+    validDocs.push(taskDoc)
   }
+
+  const inserted = validDocs.length > 0 ? await Task.insertMany(validDocs, { lean: true }) : []
+  const created = inserted.map((t: { _id: { toString(): string } }) => t._id.toString())
 
   if (created.length > 0) await Batch.findByIdAndUpdate(batchId, { $inc: { tasksTotal: created.length } })
   return { created: created.length, errors: errors.length, errorDetails: errors, taskIds: created }
@@ -172,10 +170,11 @@ export async function applyTaskAction(id: string, ctx: { userId: string; email: 
 
   if (action === 'claim') {
     if (task.status !== 'unclaimed') throw Object.assign(new Error('Task is not available to claim'), { status: 400 })
-    const blocking = await Task.findOne({ tenantId, annotatorId: userId, status: { $in: ['in-progress', 'paused'] } })
-    if (blocking) throw Object.assign(new Error('Complete your current in-progress task before claiming a new one'), { status: 400 })
-    const needsRework = await Task.findOne({ tenantId, annotatorId: userId, status: 'revision-requested' })
-    if (needsRework) throw Object.assign(new Error('You have a task requiring rework. Complete it before claiming a new one'), { status: 400 })
+    const blockingTask = await Task.findOne({ tenantId, annotatorId: userId, status: { $in: ['in-progress', 'paused', 'revision-requested'] } })
+    if (blockingTask) {
+      if (blockingTask.status === 'revision-requested') throw Object.assign(new Error('You have a task requiring rework. Complete it before claiming a new one'), { status: 400 })
+      throw Object.assign(new Error('Complete your current in-progress task before claiming a new one'), { status: 400 })
+    }
     task.annotatorId = userId as unknown as typeof task.annotatorId
     task.annotatorEmail = userEmail
     task.status = 'in-progress'; task.startedAt = new Date()

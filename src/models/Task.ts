@@ -120,7 +120,10 @@ const TaskSchema = new Schema<ITask>({
 TaskSchema.index({ tenantId: 1 })
 TaskSchema.index({ tenantId: 1, projectId: 1 })
 TaskSchema.index({ tenantId: 1, status: 1 })
+TaskSchema.index({ tenantId: 1, batchId: 1 })
 TaskSchema.index({ tenantId: 1, annotatorId: 1 })
+TaskSchema.index({ tenantId: 1, annotatorId: 1, status: 1 })
+TaskSchema.index({ tenantId: 1, submittedAt: 1, status: 1 })
 
 const Task: Model<ITask> = mongoose.models.Task || mongoose.model<ITask>('Task', TaskSchema)
 export default Task
