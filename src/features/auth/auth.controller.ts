@@ -20,7 +20,7 @@ export async function handleVerifyOtp(req: Request, res: Response) {
     const { email, otp, clientSlug } = req.body
     if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required' })
     const { token, user } = await verifyOtp(email, otp, clientSlug)
-    res.cookie('lf_token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 86400000, path: '/' })
+    res.cookie('lf_token', token, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 86400000, path: '/' })
     return res.json({ user })
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }
@@ -55,7 +55,7 @@ export async function handleImpersonate(req: Request, res: Response) {
     const { targetUserId, clientSlug } = req.body
     if (!targetUserId || !clientSlug) return res.status(400).json({ error: 'targetUserId and clientSlug are required' })
     const { token, message, user } = await impersonate(req.headers['x-user-id'] as string, targetUserId, clientSlug)
-    res.cookie('lf_token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 3600000, path: '/' })
+    res.cookie('lf_token', token, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 3600000, path: '/' })
     return res.json({ message, user })
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }
