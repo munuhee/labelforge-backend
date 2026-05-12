@@ -136,7 +136,7 @@ export async function bulkCreateTasks(tenantId: string, batchId: string, tasks: 
   }
 
   const inserted = validDocs.length > 0 ? await Task.insertMany(validDocs, { lean: true }) : []
-  const created = inserted.map((t: { _id: { toString(): string } }) => t._id.toString())
+  const created = inserted.map(t => (t._id as { toString(): string }).toString())
 
   if (created.length > 0) await Batch.findByIdAndUpdate(batchId, { $inc: { tasksTotal: created.length } })
   return { created: created.length, errors: errors.length, errorDetails: errors, taskIds: created }
