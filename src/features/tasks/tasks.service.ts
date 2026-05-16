@@ -38,12 +38,15 @@ export interface ListTasksParams {
   clientSlugParam?: string; clientIdParam?: string;
   workflow?: string; annotatorEmail?: string; reviewerEmail?: string;
   dateFrom?: string; dateTo?: string; dateExact?: string; viewAs?: string;
+  page?: string; limit?: string;
 }
 
 export async function listTasks(params: ListTasksParams) {
   await connectToDatabase()
   let { tenantId } = params
-  const { userId, role, batchId, status, mine, projectId, clientSlugParam, clientIdParam, workflow, annotatorEmail, reviewerEmail, dateFrom, dateTo, dateExact, viewAs } = params
+  const { userId, role, batchId, status, mine, projectId, clientSlugParam, clientIdParam, workflow, annotatorEmail, reviewerEmail, dateFrom, dateTo, dateExact, viewAs, page, limit } = params
+  const pageNum  = Math.max(1, parseInt(page  ?? '1',  10))
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit ?? '50', 10)))
 
   if (!isValidObjectId(tenantId) && isSuperAdmin(role)) {
     if (clientSlugParam) {
@@ -99,8 +102,15 @@ export async function listTasks(params: ListTasksParams) {
     }
   }
 
-  const tasks = await Task.find(filter).sort({ priority: -1, createdAt: -1 }).lean()
-  return tasks.map(t => serializeTask(t as unknown as Record<string, unknown>))
+  const total = await Task.countDocuments(filter)
+  const tasks = await Task.find(filter).sort({ priority: -1, createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean()
+  return {
+    tasks: tasks.map(t => serializeTask(t as unknown as Record<string, unknown>)),
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / limitNum),
+    limit: limitNum,
+  }
 }
 
 export async function createTask(tenantId: string, body: Record<string, unknown>) {

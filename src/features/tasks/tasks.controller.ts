@@ -7,7 +7,7 @@ export async function list(req: Request, res: Response) {
     const ctx = requireTenant(req, res)
     if (!ctx) return
     const q = req.query as Record<string, string>
-    const tasks = await listTasks({ tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role, batchId: q.batchId, status: q.status, mine: q.mine, projectId: q.projectId, clientSlugParam: q.clientSlug, clientIdParam: q.clientId, workflow: q.workflow, annotatorEmail: q.annotatorEmail, reviewerEmail: q.reviewerEmail, dateFrom: q.dateFrom, dateTo: q.dateTo, dateExact: q.dateExact, viewAs: q.viewAs })
+    const tasks = await listTasks({ tenantId: ctx.tenantId, userId: ctx.userId, role: ctx.role, batchId: q.batchId, status: q.status, mine: q.mine, projectId: q.projectId, clientSlugParam: q.clientSlug, clientIdParam: q.clientId, workflow: q.workflow, annotatorEmail: q.annotatorEmail, reviewerEmail: q.reviewerEmail, dateFrom: q.dateFrom, dateTo: q.dateTo, dateExact: q.dateExact, viewAs: q.viewAs, page: q.page, limit: q.limit })
     return res.json(tasks)
   } catch (err) {
     console.error('[tasks GET]', err)
