@@ -103,6 +103,7 @@ export async function listTasks(params: ListTasksParams) {
   }
 
   const total = await Task.countDocuments(filter)
+  console.log(`[listTasks] filter=${JSON.stringify(filter)} total=${total} page=${pageNum} limit=${limitNum}`)
   const tasks = await Task.find(filter).sort({ priority: -1, createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean()
   return {
     tasks: tasks.map(t => serializeTask(t as unknown as Record<string, unknown>)),
@@ -146,24 +147,21 @@ export async function bulkCreateTasks(tenantId: string, batchId: string, tasks: 
     validDocs.push(taskDoc)
   }
 
-  let inserted: { _id: unknown }[] = []
-  if (validDocs.length > 0) {
+  const createdIds: string[] = []
+  for (let i = 0; i < validDocs.length; i++) {
     try {
-      const result = await Task.insertMany(validDocs, { lean: true, ordered: false })
-      inserted = result as { _id: unknown }[]
+      const task = await Task.create(validDocs[i])
+      createdIds.push((task._id as { toString(): string }).toString())
     } catch (err: unknown) {
-      // ordered: false — partial inserts succeed; collect the ones that wrote
-      const e = err as { insertedDocs?: { _id: unknown }[]; writeErrors?: { index: number; errmsg: string }[] }
-      inserted = e.insertedDocs ?? []
-      for (const we of e.writeErrors ?? []) {
-        errors.push({ index: we.index, error: we.errmsg ?? 'Write error' })
-      }
+      const e = err as Error
+      console.error(`[bulkCreate] doc ${i} failed:`, e.message)
+      errors.push({ index: i, error: e.message ?? 'Write error' })
     }
   }
-  const created = inserted.map(t => (t._id as { toString(): string }).toString())
 
-  if (created.length > 0) await Batch.findByIdAndUpdate(batchId, { $inc: { tasksTotal: created.length } })
-  return { created: created.length, errors: errors.length, errorDetails: errors, taskIds: created }
+  if (createdIds.length > 0) await Batch.findByIdAndUpdate(batchId, { $inc: { tasksTotal: createdIds.length } })
+  console.log(`[bulkCreate] created=${createdIds.length} errors=${errors.length} tenant=${effectiveTenantId} batch=${batchId}`)
+  return { created: createdIds.length, errors: errors.length, errorDetails: errors, taskIds: createdIds }
 }
 
 export async function getTaskById(id: string, tenantId: string) {

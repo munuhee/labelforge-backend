@@ -34,6 +34,7 @@ export async function bulkCreate(req: Request, res: Response) {
     if (!ctx) return
     if (!isClientAdmin(ctx.role)) return res.status(403).json({ error: 'Forbidden' })
     const { batchId, tasks, metadata = {} } = req.body
+    console.log(`[bulkCreate] tenant=${ctx.tenantId} role=${ctx.role} batchId=${batchId} taskCount=${Array.isArray(tasks) ? tasks.length : 'not-array'}`)
     if (!batchId) return res.status(400).json({ error: 'batchId is required' })
     if (!Array.isArray(tasks) || tasks.length === 0) return res.status(400).json({ error: 'tasks must be a non-empty array' })
     const result = await bulkCreateTasks(ctx.tenantId, batchId, tasks, metadata)
