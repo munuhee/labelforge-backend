@@ -125,6 +125,7 @@ export async function bulkCreateTasks(tenantId: string, batchId: string, tasks: 
   const bf = isValidObjectId(tenantId) ? { tenantId } : {}
   const batch = await Batch.findOne({ _id: batchId, ...bf })
   if (!batch) throw Object.assign(new Error('Batch not found'), { status: 404 })
+  const effectiveTenantId = isValidObjectId(tenantId) ? tenantId : (batch.tenantId as { toString(): string }).toString()
 
   const errors: { index: number; error: string }[] = []
   const globalMeta: Record<string, unknown> = {}
@@ -138,14 +139,27 @@ export async function bulkCreateTasks(tenantId: string, batchId: string, tasks: 
   for (let i = 0; i < tasks.length; i++) {
     const raw = tasks[i]
     if (!raw.title) { errors.push({ index: i, error: 'Missing required field: title' }); continue }
-    const taskDoc: Record<string, unknown> = { tenantId, projectId: batch.projectId, batchId: batch._id, batchTitle: batch.title, workflowId: batch.workflowId, workflowName: batch.workflowName, taskType: batch.taskType, status: 'unclaimed', priority: batch.priority, estimatedDuration: 30, ...globalMeta, ...raw }
+    const taskDoc: Record<string, unknown> = { tenantId: effectiveTenantId, projectId: batch.projectId, batchId: batch._id, batchTitle: batch.title, workflowId: batch.workflowId, workflowName: batch.workflowName, taskType: batch.taskType, status: 'unclaimed', priority: batch.priority, estimatedDuration: 30, ...globalMeta, ...raw }
     if (typeof taskDoc.languageTags === 'string') taskDoc.languageTags = (taskDoc.languageTags as string).split(',').map((t: string) => t.trim()).filter(Boolean)
     if (taskDoc.priority) taskDoc.priority = Number(taskDoc.priority)
     if (taskDoc.estimatedDuration) taskDoc.estimatedDuration = Number(taskDoc.estimatedDuration)
     validDocs.push(taskDoc)
   }
 
-  const inserted = validDocs.length > 0 ? await Task.insertMany(validDocs, { lean: true }) : []
+  let inserted: { _id: unknown }[] = []
+  if (validDocs.length > 0) {
+    try {
+      const result = await Task.insertMany(validDocs, { lean: true, ordered: false })
+      inserted = result as { _id: unknown }[]
+    } catch (err: unknown) {
+      // ordered: false — partial inserts succeed; collect the ones that wrote
+      const e = err as { insertedDocs?: { _id: unknown }[]; writeErrors?: { index: number; errmsg: string }[] }
+      inserted = e.insertedDocs ?? []
+      for (const we of e.writeErrors ?? []) {
+        errors.push({ index: we.index, error: we.errmsg ?? 'Write error' })
+      }
+    }
+  }
   const created = inserted.map(t => (t._id as { toString(): string }).toString())
 
   if (created.length > 0) await Batch.findByIdAndUpdate(batchId, { $inc: { tasksTotal: created.length } })

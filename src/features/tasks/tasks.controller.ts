@@ -37,7 +37,7 @@ export async function bulkCreate(req: Request, res: Response) {
     if (!batchId) return res.status(400).json({ error: 'batchId is required' })
     if (!Array.isArray(tasks) || tasks.length === 0) return res.status(400).json({ error: 'tasks must be a non-empty array' })
     const result = await bulkCreateTasks(ctx.tenantId, batchId, tasks, metadata)
-    return res.status(result.errors > 0 && result.created === 0 ? 400 : 201).json(result)
+    return res.status(200).json(result)
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }
     return res.status(e.status ?? 500).json({ error: e.message ?? 'Internal server error' })
