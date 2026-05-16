@@ -67,7 +67,9 @@ export async function listTasks(params: ListTasksParams) {
   }
 
   if (role === 'annotator' || (role === 'reviewer_annotator' && viewAs === 'annotator')) {
-    filter.annotatorId = userId
+    const requestedStatuses = status ? status.split(',').map(s => s.trim()) : []
+    const onlyUnclaimed = requestedStatuses.length > 0 && requestedStatuses.every(s => s === 'unclaimed')
+    if (!onlyUnclaimed) filter.annotatorId = userId
   } else if (mine === 'true' && (role === 'reviewer' || role === 'reviewer_annotator')) {
     filter.reviewerId = userId
   }
