@@ -88,7 +88,24 @@ export async function run(_req: Request, res: Response) {
       { ...acBase, title: 'Track package deliveries and notify users of delays', status: 'unclaimed', priority: 0.78, difficulty: 'easy', languageTags: ['en'], externalUrl: '', estimatedDuration: 8, sla: new Date(now + d(8)) },
     ])
 
-    await Batch.findByIdAndUpdate(acBatch._id, { tasksTotal: 8, tasksCompleted: 1 })
+    await Task.insertMany([
+      { ...acBase, title: 'Monitor competitor pricing and generate a daily report', status: 'unclaimed', priority: 0.76, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 20 },
+      { ...acBase, title: 'Research and summarize market trends in a target industry', status: 'unclaimed', priority: 0.75, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 30 },
+      { ...acBase, title: 'Detect fraudulent transactions and flag suspicious activity', status: 'unclaimed', priority: 0.74, difficulty: 'hard', languageTags: ['en'], externalUrl: '', estimatedDuration: 25 },
+      { ...acBase, title: 'Scrape product reviews and summarize customer sentiment', status: 'unclaimed', priority: 0.73, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 28 },
+      { ...acBase, title: 'Automatically generate invoices and send payment reminders', status: 'unclaimed', priority: 0.72, difficulty: 'easy', languageTags: ['en'], externalUrl: '', estimatedDuration: 14 },
+      { ...acBase, title: 'Search for scholarship opportunities and prepare applications', status: 'unclaimed', priority: 0.71, difficulty: 'hard', languageTags: ['en'], externalUrl: '', estimatedDuration: 50 },
+      { ...acBase, title: 'Identify and fix broken links across a website', status: 'unclaimed', priority: 0.70, difficulty: 'easy', languageTags: ['en'], externalUrl: '', estimatedDuration: 16 },
+      { ...acBase, title: 'Monitor cloud infrastructure and restart failed services', status: 'unclaimed', priority: 0.69, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 12 },
+      { ...acBase, title: 'Generate weekly SEO keyword opportunity reports', status: 'unclaimed', priority: 0.68, difficulty: 'easy', languageTags: ['en'], externalUrl: '', estimatedDuration: 18 },
+      { ...acBase, title: 'Manage freelancer onboarding and document verification', status: 'unclaimed', priority: 0.67, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 25 },
+      { ...acBase, title: 'Match freelancers to suitable projects automatically', status: 'unclaimed', priority: 0.66, difficulty: 'easy', languageTags: ['en'], externalUrl: '', estimatedDuration: 10 },
+      { ...acBase, title: 'Track stock prices and trigger trading alerts', status: 'unclaimed', priority: 0.65, difficulty: 'easy', languageTags: ['en'], externalUrl: '', estimatedDuration: 5 },
+      { ...acBase, title: 'Monitor cryptocurrency markets and rebalance portfolios', status: 'unclaimed', priority: 0.64, difficulty: 'hard', languageTags: ['en'], externalUrl: '', estimatedDuration: 12 },
+      { ...acBase, title: 'Research suppliers and compare procurement options', status: 'unclaimed', priority: 0.63, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 30 },
+    ])
+
+    await Batch.findByIdAndUpdate(acBatch._id, { tasksTotal: 22, tasksCompleted: 1 })
     await Review.insertMany([
       { tenantId: acmeCorp._id, projectId: acmeProject._id, workflowId: acWF._id, taskId: t3._id, taskTitle: t3.title, batchId: acBatch._id, batchTitle: acBatch.title, annotatorId: odhiambo._id, annotatorEmail: odhiambo.email, annotatorName: odhiambo.name, status: 'pending', submittedAt: ago(h(1)) },
       { tenantId: acmeCorp._id, projectId: acmeProject._id, workflowId: acWF._id, taskId: t6._id, taskTitle: t6.title, batchId: acBatch._id, batchTitle: acBatch.title, annotatorId: odhiambo._id, annotatorEmail: odhiambo.email, annotatorName: odhiambo.name, reviewerId: amina._id, reviewerEmail: amina.email, reviewerName: amina.name, status: 'approved', decision: 'approve', qualityScore: 93, comments: 'All required steps captured clearly.', submittedAt: ago(d(3) + h(3)), reviewedAt: ago(d(2)) },
@@ -108,13 +125,29 @@ export async function run(_req: Request, res: Response) {
       { ...tlBase, title: 'Plan travel itineraries including hotels and transport', status: 'revision-requested', priority: 0.75, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 25, annotatorId: tlAnnotator2._id, annotatorEmail: tlAnnotator2.email, reviewerId: tlReviewer._id, reviewerEmail: tlReviewer.email, feedback: 'Hotel options were listed but transport connections between stops are missing.', startedAt: ago(d(2)), submittedAt: ago(d(1) + h(3)), actualDuration: 23 },
     ])
 
-    await Batch.findByIdAndUpdate(tlBatch._id, { tasksTotal: 5, tasksCompleted: 1 })
+    await Task.insertMany([
+      { ...tlBase, title: 'Generate personalized learning plans for students', status: 'unclaimed', priority: 0.74, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 20 },
+      { ...tlBase, title: 'Audit website accessibility issues and suggest fixes', status: 'unclaimed', priority: 0.73, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 18 },
+      { ...tlBase, title: 'Generate code, run tests, and open pull requests', status: 'unclaimed', priority: 0.72, difficulty: 'hard', languageTags: ['en'], externalUrl: '', estimatedDuration: 35 },
+      { ...tlBase, title: 'Monitor API performance and investigate outages', status: 'unclaimed', priority: 0.71, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 12 },
+      { ...tlBase, title: 'Screen resumes and shortlist qualified candidates', status: 'unclaimed', priority: 0.70, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 20 },
+      { ...tlBase, title: 'Prepare tax documents from financial records', status: 'unclaimed', priority: 0.69, difficulty: 'hard', languageTags: ['en'], externalUrl: '', estimatedDuration: 45 },
+      { ...tlBase, title: 'Track online brand reputation and issue alerts', status: 'unclaimed', priority: 0.68, difficulty: 'easy', languageTags: ['en'], externalUrl: '', estimatedDuration: 10 },
+      { ...tlBase, title: 'Optimize ad campaign budgets across platforms', status: 'unclaimed', priority: 0.67, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 22 },
+      { ...tlBase, title: 'Search and compare SaaS tools for a business need', status: 'unclaimed', priority: 0.66, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 30 },
+      { ...tlBase, title: 'Monitor subscription renewals and prevent service lapses', status: 'unclaimed', priority: 0.65, difficulty: 'easy', languageTags: ['en'], externalUrl: '', estimatedDuration: 7 },
+      { ...tlBase, title: 'Automate CRM updates from customer interactions', status: 'unclaimed', priority: 0.64, difficulty: 'easy', languageTags: ['en'], externalUrl: '', estimatedDuration: 9 },
+      { ...tlBase, title: 'Investigate payment allocation discrepancies', status: 'unclaimed', priority: 0.63, difficulty: 'hard', languageTags: ['en'], externalUrl: '', estimatedDuration: 20 },
+      { ...tlBase, title: 'Generate and publish blog posts from research briefs', status: 'unclaimed', priority: 0.62, difficulty: 'medium', languageTags: ['en'], externalUrl: '', estimatedDuration: 40 },
+    ])
+
+    await Batch.findByIdAndUpdate(tlBatch._id, { tasksTotal: 18, tasksCompleted: 1 })
     await Notification.insertMany([
       { tenantId: acmeCorp._id, userId: wanjiru._id, type: 'batch-assigned', title: 'New Tasks Available', message: 'You have been assigned to "Agentic AI Tasks".', read: false },
       { tenantId: acmeCorp._id, userId: odhiambo._id, type: 'task-approved', title: 'Task Signed Off', message: `Your task "${t6.title}" scored 93%.`, read: false },
       { tenantId: techLab._id, userId: tlAnnotator1._id, type: 'task-approved', title: 'Task Signed Off', message: `Your task "${tl4.title}" scored 91%.`, read: false },
     ])
-    await Notification.create({ userId: superAdmin._id, type: 'system', title: 'Database Seeded', message: '2 workspaces · 2 workflows · 2 batches · 13 tasks · 4 reviews seeded.', read: false })
+    await Notification.create({ userId: superAdmin._id, type: 'system', title: 'Database Seeded', message: '2 workspaces · 2 workflows · 2 batches · 40 tasks · 2 reviews seeded.', read: false })
 
     return res.json({
       message: 'Database seeded successfully',
