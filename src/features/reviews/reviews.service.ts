@@ -20,7 +20,7 @@ export function serializeReview(r: Record<string, unknown>) {
     reviewerEmail: r.reviewerEmail, reviewerName: r.reviewerName,
     status: r.status, decision: r.decision, comments: r.comments, reasonCode: r.reasonCode,
     qualityScore: r.qualityScore, criteriaScores: r.criteriaScores,
-    submittedAt: r.submittedAt, reviewedAt: r.reviewedAt, createdAt: r.createdAt,
+    submittedAt: r.submittedAt, reviewStartedAt: r.reviewStartedAt, reviewedAt: r.reviewedAt, createdAt: r.createdAt,
   }
 }
 
@@ -77,6 +77,7 @@ export async function applyReviewAction(id: string, ctx: { userId: string; email
     if (active >= 1) throw Object.assign(new Error('Complete your current active review before claiming another'), { status: 400 })
     review.reviewerId = userId as unknown as typeof review.reviewerId
     review.reviewerEmail = userEmail; review.reviewerName = userEmail.split('@')[0]; review.status = 'in-review'
+    review.reviewStartedAt = new Date()
     await Task.findOneAndUpdate({ _id: review.taskId, tenantId }, { reviewerId: userId, reviewerEmail: userEmail, status: 'in-review' })
 
   } else if (action === 'decide') {

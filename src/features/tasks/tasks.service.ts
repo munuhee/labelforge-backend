@@ -6,6 +6,7 @@ import Batch from '../../models/Batch'
 import Review from '../../models/Review'
 import Notification from '../../models/Notification'
 import Client from '../../models/Client'
+import { uploadScreenshots } from '../../lib/cloudinary'
 
 export function serializeTask(t: Record<string, unknown>) {
   return {
@@ -25,6 +26,7 @@ export function serializeTask(t: Record<string, unknown>) {
     subtasks: t.subtasks, submissionData: t.submissionData, screenshots: t.screenshots, extensionData: t.extensionData,
     errorTags: t.errorTags ?? [], activityLog: t.activityLog ?? [],
     startedAt: t.startedAt, completedAt: t.completedAt, submittedAt: t.submittedAt, signedOffAt: t.signedOffAt, createdAt: t.createdAt,
+    attemptStartedAt: t.attemptStartedAt, attemptDurations: (t.attemptDurations as number[] | undefined) ?? [],
   }
 }
 
@@ -175,7 +177,7 @@ export async function getTaskById(id: string, tenantId: string) {
   const review = await Review.findOne({ taskId: id, ...tenantFilter }).sort({ createdAt: -1 }).lean()
   return {
     ...serializeTask(task as unknown as Record<string, unknown>),
-    review: review ? { id: review._id.toString(), status: review.status, decision: review.decision, comments: review.comments, qualityScore: review.qualityScore, criteriaScores: review.criteriaScores, reviewerName: review.reviewerName, reviewedAt: review.reviewedAt } : null,
+    review: review ? { id: review._id.toString(), status: review.status, decision: review.decision, comments: review.comments, qualityScore: review.qualityScore, criteriaScores: review.criteriaScores, reviewerName: review.reviewerName, submittedAt: review.submittedAt, reviewStartedAt: review.reviewStartedAt, reviewedAt: review.reviewedAt } : null,
   }
 }
 
@@ -202,19 +204,26 @@ export async function applyTaskAction(id: string, ctx: { userId: string; email: 
     task.annotatorId = userId as unknown as typeof task.annotatorId
     task.annotatorEmail = userEmail
     task.status = 'in-progress'; task.startedAt = new Date()
+    task.attemptStartedAt = new Date()
     task.activityLog.push(logEntry(userId, userEmail, 'claimed'))
     await Batch.findByIdAndUpdate(task.batchId, { status: 'in-progress' })
   } else if (action === 'pause') {
     task.status = 'paused'; task.activityLog.push(logEntry(userId, userEmail, 'paused'))
   } else if (action === 'resume') {
-    task.status = 'in-progress'; task.activityLog.push(logEntry(userId, userEmail, 'resumed'))
+    task.status = 'in-progress'; task.attemptStartedAt = new Date()
+    task.activityLog.push(logEntry(userId, userEmail, 'resumed'))
   } else if (action === 'park') {
     const comment = (body.parkComment as string) || ''
     task.status = 'paused'; if (comment) task.notes = `[PARKED] ${comment}`
     task.activityLog.push(logEntry(userId, userEmail, 'parked', comment))
   } else if (action === 'submit') {
     const wasRevisionRequested = task.status === 'revision-requested'
-    task.status = 'submitted'; task.submittedAt = new Date()
+    const now = new Date()
+    if (task.attemptStartedAt) {
+      task.attemptDurations.push(Math.floor((now.getTime() - task.attemptStartedAt.getTime()) / 60000))
+      task.attemptStartedAt = undefined
+    }
+    task.status = 'submitted'; task.submittedAt = now
     if (body.notes) task.notes = body.notes as string
     task.activityLog.push(logEntry(userId, userEmail, wasRevisionRequested ? 'resubmitted-after-rework' : 'submitted', body.notes as string))
     if (wasRevisionRequested) {
@@ -229,6 +238,8 @@ export async function applyTaskAction(id: string, ctx: { userId: string; email: 
     if (!pendingReview) throw Object.assign(new Error('Task is already in review — cannot recall'), { status: 400 })
     await Review.findByIdAndDelete(pendingReview._id)
     task.status = 'in-progress'; task.submittedAt = undefined
+    if (task.attemptDurations.length) task.attemptDurations.pop()
+    task.attemptStartedAt = new Date()
     task.activityLog.push(logEntry(userId, userEmail, 'recalled', 'Pulled back for edits'))
   } else if (action === 'escalate') {
     const comment = (body.comment as string) || ''
@@ -276,6 +287,48 @@ export async function applyTaskAction(id: string, ctx: { userId: string; email: 
     Object.assign(task, body)
   }
 
+  await task.save()
+  return serializeTask(task.toObject() as unknown as Record<string, unknown>)
+}
+
+export async function saveExtensionData(id: string, ctx: { userId: string; email: string; role: string; tenantId: string }, body: Record<string, unknown>) {
+  await connectToDatabase()
+  const tFilter = isValidObjectId(ctx.tenantId) ? { tenantId: ctx.tenantId } : {}
+  const task = await Task.findOne({ _id: id, ...tFilter })
+  if (!task) throw Object.assign(new Error('Task not found'), { status: 404 })
+
+  const extensionData = body.extensionData as Record<string, unknown> | undefined
+  const screenshots = body.screenshots as string[] | undefined
+
+  if (extensionData && typeof extensionData === 'object') {
+    // Strip bulky fields before storing in the document
+    const { events: _events, screenshots_with_timestamps, ...rest } = extensionData as Record<string, unknown> & {
+      events?: unknown
+      screenshots_with_timestamps?: Array<{ url?: string; timestamp?: string }>
+    }
+    // Keep timestamps only — dataUrls are already stored in task.screenshots
+    const timestampsOnly = Array.isArray(screenshots_with_timestamps)
+      ? screenshots_with_timestamps.map(({ timestamp }, idx) => ({ idx, timestamp }))
+      : undefined
+    task.extensionData = {
+      ...(task.extensionData ?? {}),
+      ...rest,
+      ...(timestampsOnly ? { screenshot_timestamps: timestampsOnly } : {}),
+    }
+  }
+
+  if (Array.isArray(screenshots) && screenshots.length > 0) {
+    // Upload base64 dataUrls to Cloudinary, store secure URLs instead
+    try {
+      const urls = await uploadScreenshots(screenshots, `labelforge/screenshots/${id}`)
+      task.screenshots = urls
+    } catch (err) {
+      console.error('[cloudinary] upload failed, storing as-is:', err)
+      task.screenshots = screenshots
+    }
+  }
+
+  task.activityLog.push(logEntry(ctx.userId, ctx.email, 'extension-data-saved'))
   await task.save()
   return serializeTask(task.toObject() as unknown as Record<string, unknown>)
 }

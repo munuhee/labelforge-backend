@@ -43,6 +43,8 @@ export interface ITask extends Document {
   completedAt?: Date
   submittedAt?: Date
   signedOffAt?: Date
+  attemptStartedAt?: Date
+  attemptDurations: number[]
   createdAt: Date
   updatedAt: Date
 }
@@ -115,6 +117,8 @@ const TaskSchema = new Schema<ITask>({
   completedAt: { type: Date },
   submittedAt: { type: Date },
   signedOffAt: { type: Date },
+  attemptStartedAt: { type: Date },
+  attemptDurations: { type: [Number], default: [] },
 }, { timestamps: true })
 
 TaskSchema.index({ tenantId: 1 })

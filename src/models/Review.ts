@@ -26,6 +26,7 @@ export interface IReview extends Document {
     createdBy: string; createdByEmail: string; resolvedBy?: string; resolvedAt?: Date
   }>
   submittedAt: Date
+  reviewStartedAt?: Date
   reviewedAt?: Date
   createdAt: Date
   updatedAt: Date
@@ -65,6 +66,7 @@ const ReviewSchema = new Schema<IReview>({
     resolvedAt: { type: Date },
   }],
   submittedAt: { type: Date, required: true },
+  reviewStartedAt: { type: Date },
   reviewedAt: { type: Date },
 }, { timestamps: true })
 

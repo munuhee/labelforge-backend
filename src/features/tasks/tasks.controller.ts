@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { requireTenant, isClientAdmin } from '../../lib/tenant'
-import { listTasks, createTask, bulkCreateTasks, getTaskById, applyTaskAction, deleteTask } from './tasks.service'
+import { listTasks, createTask, bulkCreateTasks, getTaskById, applyTaskAction, deleteTask, saveExtensionData } from './tasks.service'
 
 export async function list(req: Request, res: Response) {
   try {
@@ -66,6 +66,21 @@ export async function action(req: Request, res: Response) {
   } catch (err: unknown) {
     const e = err as { status?: number; message?: string }
     console.error('[tasks/:id PATCH]', err)
+    return res.status(e.status ?? 500).json({ error: e.message ?? 'Internal server error' })
+  }
+}
+
+export async function extensionData(req: Request, res: Response) {
+  try {
+    const userId = (req.headers['x-user-id'] as string) ?? 'extension'
+    const email = (req.headers['x-user-email'] as string) ?? ''
+    const role = (req.headers['x-user-role'] as string) ?? 'annotator'
+    const tenantId = (req.headers['x-tenant-id'] as string) ?? ''
+    const task = await saveExtensionData(req.params.id as string, { userId, email, role, tenantId }, req.body)
+    return res.json(task)
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string }
+    console.error('[tasks/:id/extension-data POST]', err)
     return res.status(e.status ?? 500).json({ error: e.message ?? 'Internal server error' })
   }
 }
