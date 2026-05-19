@@ -301,9 +301,7 @@ export async function saveExtensionData(id: string, ctx: { userId: string; email
   const screenshots = body.screenshots as string[] | undefined
 
   if (extensionData && typeof extensionData === 'object') {
-    // Strip bulky fields before storing in the document
-    const { events: _events, screenshots_with_timestamps, ...rest } = extensionData as Record<string, unknown> & {
-      events?: unknown
+    const { screenshots_with_timestamps, ...rest } = extensionData as Record<string, unknown> & {
       screenshots_with_timestamps?: Array<{ url?: string; timestamp?: string }>
     }
     // Keep timestamps only — dataUrls are already stored in task.screenshots
