@@ -34,8 +34,8 @@ export interface ITask extends Document {
   screenshots?: string[]
   extensionData?: Record<string, unknown>
   errorTags: Array<{
-    tagId: string; severity: 'major' | 'minor'; category: string; message: string
-    stepReference?: string; scoreDeduction: number; status: 'open' | 'resolved'
+    tagId: string; severity: 'major' | 'minor'; message: string
+    scoreDeduction: number; status: 'open' | 'resolved'
     createdBy: string; createdByEmail: string; resolvedBy?: string; resolvedAt?: Date
   }>
   activityLog: Array<{ action: string; userId: string; userEmail: string; comment?: string; timestamp: Date }>
@@ -52,9 +52,7 @@ export interface ITask extends Document {
 const ErrorTagSchema = new Schema({
   tagId: { type: String, required: true },
   severity: { type: String, enum: ['major', 'minor'], required: true },
-  category: { type: String, required: true },
   message: { type: String, required: true },
-  stepReference: { type: String },
   scoreDeduction: { type: Number, default: 0 },
   status: { type: String, enum: ['open', 'resolved'], default: 'open' },
   createdBy: { type: String, required: true },

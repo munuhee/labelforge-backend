@@ -21,8 +21,8 @@ export interface IReview extends Document {
   qualityScore?: number
   criteriaScores?: { accuracy: number; completeness: number; adherence: number }
   errorTags?: Array<{
-    tagId: string; severity: 'major' | 'minor'; category: string; message: string
-    stepReference?: string; scoreDeduction: number; status: 'open' | 'resolved'
+    tagId: string; severity: 'major' | 'minor'; message: string
+    scoreDeduction: number; status: 'open' | 'resolved'
     createdBy: string; createdByEmail: string; resolvedBy?: string; resolvedAt?: Date
   }>
   submittedAt: Date
@@ -55,9 +55,7 @@ const ReviewSchema = new Schema<IReview>({
   errorTags: [{
     tagId: { type: String, required: true },
     severity: { type: String, enum: ['major', 'minor'], required: true },
-    category: { type: String, required: true },
     message: { type: String, required: true },
-    stepReference: { type: String },
     scoreDeduction: { type: Number, default: 0 },
     status: { type: String, enum: ['open', 'resolved'], default: 'open' },
     createdBy: { type: String, required: true },

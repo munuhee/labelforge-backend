@@ -269,7 +269,7 @@ export async function applyTaskAction(id: string, ctx: { userId: string; email: 
   } else if (action === 'add-error-tag') {
     if (!isReviewerOrAbove(role)) throw Object.assign(new Error('Forbidden'), { status: 403 })
     const { tag } = body as { tag: Record<string, unknown> }
-    task.errorTags.push({ tagId: (tag.tagId as string) ?? randomUUID(), severity: tag.severity as 'major' | 'minor', category: tag.category as string, message: tag.message as string, stepReference: tag.stepReference as string | undefined, scoreDeduction: (tag.scoreDeduction as number) ?? (tag.severity === 'major' ? 20 : 5), status: 'open', createdBy: userId, createdByEmail: userEmail })
+    task.errorTags.push({ tagId: (tag.tagId as string) ?? randomUUID(), severity: tag.severity as 'major' | 'minor', message: tag.message as string, scoreDeduction: (tag.scoreDeduction as number) ?? (tag.severity === 'major' ? 20 : 5), status: 'open', createdBy: userId, createdByEmail: userEmail })
     task.activityLog.push(logEntry(userId, userEmail, 'added-error-tag', `[${(tag.severity as string).toUpperCase()}] ${tag.message}`))
   } else if (action === 'remove-error-tag') {
     if (!isReviewerOrAbove(role)) throw Object.assign(new Error('Forbidden'), { status: 403 })
